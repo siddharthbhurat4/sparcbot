@@ -12,275 +12,239 @@ from sparcbot_interfaces.msg import TrailerAngle
 
 # The trailer: measured on the robot.
 L = 0.081                               # L: hitch pivot to the centre of the trailer's axle [m]
-a = 0.15                                # a: how far BEHIND the robot's axle centre the pivot is [m]
+a = 0.14                               # a: how far BEHIND the robot's axle centre the pivot is [m]
 
-Q = 2.0                                 # cost on the trailer-angle error
+Q = 1.0                                 # cost on the trailer-angle error
 R = 1.0                                 # cost on the steering correction
 
-SPEED_LEVELS = (0.10, 0.15, 0.20, -0.10, -0.15, -0.20)       # [m/s]
-TURN_LEVELS = (0.10, 0.20, 0.30, -0.10, -0.20, -0.30, 0.0)        # [rad/s]
-MAX_STEADY_ANGLE_DEG = 35.0             # arcs with a bigger steady trailer angle are not in the table
+SPEED_LEVELS = [i / 10 for i in range(-4, 5)]    # [m/s]
+TURN_LEVELS = [j / 10 for j in range(-5, 6)]     # [rad/s]
 
+MAX_STEADY_ANGLE_DEG = 35.0             # arcs with a bigger steady trailer angle are not in the table
 RATE_HZ = 50.0                  # control rate
 MAX_ANGULAR_RAD_S = 1.0         # limit on the angular.z we publish
 MAX_TRAILER_ANGLE_DEG = 60.0    # stop if |phi| is bigger than this (jackknife is near)
 TRAILER_TIMEOUT_S = 0.2         # stop if /trailer_angle is silent for this long
 
 
-def steady_trailer_angle(v, omega):
-    # calculating the stable trailer angle for a given linear and angular velocity
-    # combination of v and omega gives us a radius which that combination will make 
-    # and using that we calculate the angle
-    if v == 0.0:
-        return None                       # not a circle (stopped or spinning in place)
-    k = omega / v                         # curvature [1/m]
-    c = a * k
-    delta = math.atan(c)
-    s = -L * k / math.sqrt(1.0 + c * c)   # value that sin(phi + delta) must equal
-    if abs(s) > 1.0:
-        return None                       # circle too tight: no steady trailer angle
+#hitch_equilibrium_angle(v_eq, omega_eq)
+def hitch_equilibrium_angle(v_eq, omega_eq):
 
-    return math.asin(s) - delta
+    # TODO: Find the equilibrium phi_eq closest to phi_eq=0 for (v_eq, omega_eq). Return none if v=0 or if phi_eq doesn't exist. 
+        
+    return phi_eq
 
-def linearize(v, omega):
-    #linearizing the trailer angle dynamics at the given v and omega, phi is the trailer angle wrt to sparcbot
-    #the dynamics for trailer angle: phi_dot = -v/L * sin(phi) - (1 + a/L * cos(phi)) * omega
-    #you will be returning phi, A, B
-    #TODO
-    raise NotImplementedError('linearize: fill in the TODO')
+#linearize(v_eq, omega_eq)
+def linearize(v_eq, omega_eq):
 
-def scalar_lqr(A, B, Q, R):
-    # using the ricatti equation to calcualate P the root using this quadratic equation where P > 0
-    # 2 * A * P - (B^2 / R) * P^2 + Q = 0 
-    # and the gain K is calculated using K = B * P/R
-    # you will be returning K
-    #TODO
-    raise NotImplementedError('scalar_lqr: fill in the TODO')
+    phi_eq = hitch_equilibrium_angle(v_eq, omega_eq)
+
+    # TODO: Find the linearization terms.  
     
-def build_row(v, omega, Q, R, max_angle_deg=35.0):
-    # one row in the table corresponds to a dictionary of the form 
-    # {'v': v, 'omega': omega, 'phi_star': phi, 'A': A, 'B': B, 'K': K}
-    # we use this build row helper by running in a loop over multiple v and omega combinations
-    # to generate a table for gain scheduling
-    # you will be returning a dictiopna of this form : {'v': v, 'omega': omega, 'phi_star': phi, 'A': A, 'B': B, 'K': K}
-    #TODO
-    raise NotImplementedError('build_row: fill in the TODO')
+    return phi_eq, A, Bphi
 
-def build_table(Q, R, speed_levels, turn_levels, max_angle_deg=35.0):
-    # Collect all those rows built in build row 
-    # into a list to make a gains lookup table
-    rows = []
-    #TODO
-    raise NotImplementedError('build_table: fill in the TODO')
+#scalar_lqr(A, Bphi, Q, R)
+def scalar_lqr(A, Bphi, Q, R):
+    
+    # TODO: Find the optimal LQR gain. 
+
+    return K 
+
+#build_table(Q, R)
+def build_table(Q, R):
+
+    gain_table = np.zeros((len(SPEED_LEVELS), len(TURN_LEVELS)))
+    for i, v_eq in enumerate(SPEED_LEVELS):
+        for j, omega_eq in enumerate(TURN_LEVELS):
+            # TODO: Set the table with the optimal LQR gains for each (v_eq, omega_eq)-->phi_eq equilibrium point.
+            # gain_table[i,j] = ??? 
+
+            
+    return gain_table
 
 
-def find_row(rows, v_cmd, omega_cmd, tol=1e-3):
-    # The table row for this v_cmd and omega_cmd, or None if it is not in the table
-    for row in rows:
-        if abs(row['v'] - v_cmd) < tol and abs(row['omega'] - omega_cmd) < tol:
-            return row
+def gain_scheduled_controller(gain_table, v_cmd, omega_cmd, phi_measured):
+
+    i = SPEED_LEVELS.index(v_cmd)
+    j = TURN_LEVELS.index(omega_cmd)
+
+    # TODO: Find the gain-scheduled controller value to send to the motors.
+
+    return u
+
+
+def snap_to_level(levels, value, tol=1e-3):
+    """The entry of `levels` within tol of `value` (so 0.2000001 finds 0.2), or None."""
+    for level in levels:
+        if abs(level - value) < tol:
+            return level
     return None
 
-def scheduled_omega(row, omega_cmd, phi_measured, max_omega):
-    # omega_out = omega_cmd - K * (phi - phi_star), clamped to +/- max_omega."""
-    omega_out = omega_cmd - row['K'] * (phi_measured - row['phi_star'])
-    return max(-max_omega, min(max_omega, omega_out))
+
+def command_to_send(gain_table, v_cmd, omega_cmd, phi_measured):
+    """What the node publishes for a teleop command: (omega_out, phi_eq), or None to refuse.
+
+    None means: reversing with a command we have no gain for, so the node must stop.
+    phi_eq is None when the command is passed through unchanged (forward and not in the table).
+    """
+    v_eq = snap_to_level(SPEED_LEVELS, v_cmd)
+    omega_eq = snap_to_level(TURN_LEVELS, omega_cmd)
+
+    phi_eq = None
+    if v_eq is not None and omega_eq is not None:
+        phi_eq = hitch_equilibrium_angle(v_eq, omega_eq)
+
+    if phi_eq is None or abs(phi_eq) > math.radians(MAX_STEADY_ANGLE_DEG):
+        if v_cmd < 0.0:
+            return None                 # reverse is unstable: no gain, no driving
+        return omega_cmd, None          # forward: the trailer is stable on its own
+
+    u = gain_scheduled_controller(gain_table, v_eq, omega_eq, phi_measured)
+    return max(-MAX_ANGULAR_RAD_S, min(MAX_ANGULAR_RAD_S, u)), phi_eq
 
 
 def run_tests():
-    # Self-test of the helper functions (no robot, no ROS needed to run it):
-    #   ros2 run sparcbot_control trailer_lqr test
-    # A helper you have not written yet shows as TODO, not FAIL. The helpers are tested in the
-    # order you write them: linearize, scalar_lqr, build_row, build_table.
-    # The reference values are for L=0.081, a=0.14, Q=R=1 and a 35 deg limit, whatever the
-    # settings at the top of this file say, so they only change if the maths changes.
     global L, a
-    settings_L, settings_a = L, a       # the file's settings, put back before the last section
-    L, a = 0.081, 0.14                  # the reference values below are for these
     failures = []
-    waiting = []                        # helpers that still raise NotImplementedError
-    NOT_DONE = object()
-    skipped = {'checks': 0, 'missing': set()}     # checks of the current section waiting on a TODO
-
-    def attempt(fn, *args):
-        # fn(*args), or NOT_DONE if it (or a helper it calls) is not written yet
-        try:
-            return fn(*args)
-        except NotImplementedError as e:
-            name = str(e).split(':')[0] or fn.__name__
-            if name not in waiting:
-                waiting.append(name)
-            skipped['missing'].add(name)
-            return NOT_DONE
-
-    def heading(title):
-        end_section()
-        print(title)
-
-    def end_section():
-        if skipped['checks']:
-            names = ', '.join(sorted(skipped['missing']))
-            print(f"TODO  {skipped['checks']} checks skipped until {names} is written")
-        skipped['checks'] = 0
-        skipped['missing'] = set()
 
     def check(name, got, expected, tol=5e-4):
-        if got is NOT_DONE:
-            skipped['checks'] += 1
-            return
         ok = got is not None and abs(got - expected) <= tol
-        print(f"{'PASS' if ok else 'FAIL'}  {name}: got {got if got is None else round(got, 4)}, "
+        print("\t" f"{'PASS' if ok else 'FAIL'}  {name}: got {got if got is None else round(got, 4)}, "
             f"expected {expected}")
         if not ok:
             failures.append(name)
 
     def check_true(name, condition):
-        if condition is NOT_DONE:
-            skipped['checks'] += 1
-            return
-        print(f"{'PASS' if condition else 'FAIL'}  {name}")
+        print("\t" f"{'PASS' if condition else 'FAIL'}  {name}")
         if not condition:
             failures.append(name)
 
-    def field(result, key, convert=None):
-        # one entry of a result (a tuple or a row), passing NOT_DONE and None through
-        if result is NOT_DONE or result is None:
-            return result
-        return result[key] if convert is None else convert(result[key])
-
-    def todo_if(result, condition):
-        return NOT_DONE if result is NOT_DONE else condition
-
-    reference_points = [
-        # v, omega, phi* [deg], A, B
-        (-0.20, 0.0, 0.0, 2.4691, -2.7284),
-        (-0.20, 0.3, 18.69, 2.5051, -2.6373),
-        (-0.15, 0.2, 16.67, 1.8732, -2.6558),
-        (-0.10, -0.1, -12.57, 1.2426, -2.6870),
-        (0.10, 0.0, 0.0, -1.2346, -2.7284),
-        (0.20, -0.3, 18.69, -2.5051, -2.6373)]
-    reference_gains = [-2.2537, -2.3291, -1.9290, -1.5642, -0.6451, -0.4293]
-
-    heading('steady_trailer_angle [deg]')
+    print('TEST 1: hitch_equilibrium_angle()')
     for v, w, expected in [(0.2, 0.0, 0.0), (-0.2, 0.3, 18.69), (-0.1, -0.1, -12.57),
                         (0.2, -0.3, 18.69), (0.1, 0.3, -35.72)]:
-        phi = steady_trailer_angle(v, w)
-        check(f'v={v:+.2f} w={w:+.2f}', None if phi is None else math.degrees(phi), expected, 0.01)
-    check_true('v = 0 has no circle', steady_trailer_angle(0.0, 0.3) is None)
+        phi_eq = hitch_equilibrium_angle(v, w)
+        check(f'v={v:+.2f} w={w:+.2f}', None if phi_eq is None else math.degrees(phi_eq), expected, 0.01)
+    check_true('v = 0 has no circle', hitch_equilibrium_angle(0.0, 0.3) is None)
     L, a = 0.30, 0.10
-    check_true('too tight a circle has no angle (L=0.30, a=0.10, v=0.1, w=1.0)',
-            steady_trailer_angle(0.1, 1.0) is None)
+    check_true('too tight of a circle has no angle (L=0.30, a=0.10, v=0.1, w=1.0)',
+            hitch_equilibrium_angle(0.1, 1.0) is None)
     L, a = 0.081, 0.14
+    print("\t---------------------------")
 
-    heading('\nlinearize: phi*, A, B')
-    for v, w, phi_deg, A, B in reference_points:
-        result = attempt(linearize, v, w)
+    print('\n\n\nTEST 2: linearize()')
+    for v, w, phi_deg, A, Bphi in [
+            (-0.20, 0.0, 0.0, 2.4691, -2.7284),
+            (-0.20, 0.3, 18.69, 2.5051, -2.6373),
+            (-0.15, 0.2, 16.67, 1.8732, -2.6558),
+            (-0.10, -0.1, -12.57, 1.2426, -2.6870),
+            (0.10, 0.0, 0.0, -1.2346, -2.7284),
+            (0.20, -0.3, 18.69, -2.5051, -2.6373)]:
+        out = linearize(v, w)
         tag = f'v={v:+.2f} w={w:+.2f}'
-        check(tag + ' phi*', field(result, 0, math.degrees), phi_deg, 0.01)
-        check(tag + ' A', field(result, 1), A)
-        check(tag + ' B', field(result, 2), B)
-    result = attempt(linearize, 0.10, 0.30)
-    check_true('linearize does not apply the angle limit ((0.10, 0.30) still gives a result)',
-            todo_if(result, result is not None))
-    L, a = 0.30, 0.10
-    result = attempt(linearize, 0.1, 1.0)
-    check_true('linearize returns None when there is no steady angle',
-            todo_if(result, result is None))
-    L, a = 0.081, 0.14
+        check(tag + ' phi*', None if out[0] is None else math.degrees(out[0]), phi_deg, 0.01)
+        check(tag + ' A', None if out[0] is None else out[1], A)
+        check(tag + ' B', None if out[0] is None else out[2], Bphi)
+    print("\t---------------------------")
 
-    heading('\nscalar_lqr: K')
-    for A, B, q, r, expected in [(2 / 3, -4 / 3, 1.0, 1.0, -1.6180), (-2 / 3, -4 / 3, 1.0, 1.0, -0.6180),
-                                 (2 / 3, -4 / 3, 2.0, 1.0, -2.0), (2 / 3, -4 / 3, 1.0, 2.0, -1.3660)]:
-        check(f'A={A:+.4f} B={B:+.4f} Q={q:g} R={r:g}', attempt(scalar_lqr, A, B, q, r), expected)
-
-    heading('\nbuild_row: phi*, A, B, K')
-    for (v, w, phi_deg, A, B), K in zip(reference_points, reference_gains):
-        row = attempt(build_row, v, w, 1.0, 1.0)
+    print('\n\n\nTEST 3: scalar_lqr()')
+    Q = 1
+    R = 1
+    print("\n\tFor Q = 1, R = 1.")
+    for v, w, phi_deg, A, Bphi, K in [
+            (-0.20, 0.0, 0.0, 2.4691, -2.7284, -2.2537),
+            (-0.20, 0.3, 18.69, 2.5051, -2.6373, -2.3291),
+            (-0.15, 0.2, 16.67, 1.8732, -2.6558, -1.9290),
+            (-0.10, -0.1, -12.57, 1.2426, -2.6870, -1.5642),
+            (0.10, 0.0, 0.0, -1.2346, -2.7284, -0.6451),
+            (0.20, -0.3, 18.69, -2.5051, -2.6373, -0.4293)]:
+        K_test = scalar_lqr(A, Bphi, Q, R)
         tag = f'v={v:+.2f} w={w:+.2f}'
-        check(tag + ' phi*', field(row, 'phi_star', math.degrees), phi_deg, 0.01)
-        check(tag + ' A', field(row, 'A'), A)
-        check(tag + ' B', field(row, 'B'), B)
-        check(tag + ' K', field(row, 'K'), K)
-    row = attempt(build_row, -0.20, 0.0, 1.0, 1.0)
-    check_true('the row has the keys v, omega, phi_star, A, B, K',
-            NOT_DONE if row is NOT_DONE else
-            (row is not None and set(row) == {'v', 'omega', 'phi_star', 'A', 'B', 'K'}))
+        check(tag + ' K', None if K_test is None else K_test, K)
+    print("\t---------------------------")
 
-    heading('\nangle limit (build_row)')
-    row = attempt(build_row, 0.10, 0.30, 1.0, 1.0, 35.0)
-    check_true('(0.10, 0.30) is refused at 35 deg', todo_if(row, row is None))
-    row = attempt(build_row, 0.10, 0.30, 1.0, 1.0, 40.0)
-    check_true('(0.10, 0.30) is allowed at 40 deg', todo_if(row, row is not None))
+    Q = 2
+    R = 5
+    print("\n\tFor Q = 2, R = 5.")
+    for v, w, phi_deg, A, Bphi, K in [
+            (-0.20, 0.0, 0.0, 2.4691, -2.7284, -2.009),
+            (-0.20, 0.3, 18.69, 2.5051, -2.6373, -2.091),
+            (-0.15, 0.2, 16.67, 1.8732, -2.6558, -1.6527),
+            (-0.10, -0.1, -12.57, 1.2426, -2.6870, -1.2459),
+            (0.10, 0.0, 0.0, -1.2346, -2.7284, -0.3252),
+            (0.20, -0.3, 18.69, -2.5051, -2.6373, -0.1913)]:
+        K_test = scalar_lqr(A, Bphi, Q, R)
+        tag = f'v={v:+.2f} w={w:+.2f}'
+        check(tag + ' K', None if K_test is None else K_test, K)
+    print("\t---------------------------")
 
-    heading('\nbuild_table (Q = R = 1)')
-    rows = attempt(build_table, 1.0, 1.0, (0.10, 0.15, 0.20, -0.10, -0.15, -0.20),
-                (0.10, 0.20, 0.30, -0.10, -0.20, -0.30, 0.0))
-    if rows is NOT_DONE:
-        skipped['checks'] += 4          # row count, rows per speed, stability, mirror symmetry
-    elif rows is None:
-        print('FAIL  build_table returned None (is there a return rows at the end?)')
-        failures.append('build_table returned None')
-    else:
-        check('number of rows', len(rows), 38, 0)
-        for v, n in [(-0.20, 7), (-0.15, 7), (-0.10, 5), (0.10, 5), (0.15, 7), (0.20, 7)]:
-            check(f'rows with v={v:+.2f}', sum(1 for r in rows if r['v'] == v), n, 0)
-        check_true('every row is stable (A - B*K < 0)', all(r['A'] - r['B'] * r['K'] < 0 for r in rows))
-        mirror = True
-        for r in rows:
-            m = find_row(rows, r['v'], -r['omega'])
-            if m is None or abs(m['K'] - r['K']) > 1e-9 or abs(m['phi_star'] + r['phi_star']) > 1e-9:
+
+    print('\n\n\n TEST 4: build_table()')
+    gain_table = build_table(1.0, 1.0)
+    check('filled with values', np.count_nonzero(gain_table), (len(SPEED_LEVELS)-1)*len(TURN_LEVELS), 0)
+    stable_linearizations = 0 
+    for i, v_eq in enumerate(SPEED_LEVELS):
+        for j, omega_eq in enumerate(TURN_LEVELS):
+            phi_eq, A, Bphi = linearize(v_eq, omega_eq)
+            if phi_eq is None:
+                Acl = A
+                stable_linearizations += 1
+            else: 
+                Acl = (A - Bphi * gain_table[i,j])
+                if Acl < 0: 
+                    stable_linearizations += 1
+    check_true('Acl = (A - B*K < 0) when v_eq =/= 0', stable_linearizations == len(SPEED_LEVELS)*len(TURN_LEVELS))
+    mirror = True
+    for i, v_eq in enumerate(SPEED_LEVELS):
+        for j, omega_eq in enumerate(TURN_LEVELS):
+            if not np.isclose(gain_table[i,j], gain_table[i, len(TURN_LEVELS)-1-j]):
                 mirror = False
-        check_true('(v, omega) and (v, -omega) have the same K and opposite phi*', mirror)
+    check_true('(v, omega) and (v, -omega) have the same K', mirror)
+    print("\t---------------------------")
 
-    heading('\nfind_row (on a small table written by hand)')
-    sample = [{'v': 0.15, 'omega': 0.20}, {'v': -0.20, 'omega': 0.0}]
-    check_true('float noise still finds the row (0.15000000000000002, 0.1 + 0.1)',
-            find_row(sample, 0.15000000000000002, 0.1 + 0.1) is sample[0])
-    check_true('a refused arc is not found', find_row(sample, 0.10, 0.30) is None)
-    check_true('stopped is not found', find_row(sample, 0.0, 0.0) is None)
-    check_true('an off-grid speed is not found', find_row(sample, 0.12, 0.0) is None)
+    print('\n\n\n TEST 5: gain_scheduled_controller()')
+    for v, w, phi, expected in [(-0.2, 0.0, 0.10, 0.2254), (-0.2, 0.3, 0.40, 0.4719),
+                                (-0.1, -0.1, -0.30, -0.2261), (0.2, 0.0, 0.10, 0.0444),
+                                (0.2, -0.3, 0.0, -0.4400), 
+                                (0.0, 0.0, 0.0, 0.0)]:
+        u = gain_scheduled_controller(gain_table, v, w, phi)
+        check(f'v={v:+.2f} w={w:+.2f} phi={phi:+.2f}', gain_scheduled_controller(gain_table, v, w, phi), expected)
+    print("\t---------------------------")
 
-    heading('\nscheduled_omega (omega_out = omega_cmd - K * (phi - phi*), on rows written by hand)')
-    by_hand = {
-        (-0.2, 0.0): {'phi_star': 0.0, 'K': -2.2537},
-        (-0.2, 0.3): {'phi_star': 0.3262, 'K': -2.3291},
-        (-0.1, -0.1): {'phi_star': -0.2194, 'K': -1.5642},
-        (0.2, 0.0): {'phi_star': 0.0, 'K': -0.4437},
-        (0.2, -0.3): {'phi_star': 0.3262, 'K': -0.4293}}
-    for (v, w), phi, expected in [((-0.2, 0.0), 0.10, 0.2254), ((-0.2, 0.3), 0.40, 0.4719),
-                                  ((-0.1, -0.1), -0.30, -0.2261), ((0.2, 0.0), 0.10, 0.0444),
-                                  ((0.2, -0.3), 0.0, -0.4400)]:
-        check(f'v={v:+.2f} w={w:+.2f} phi={phi:+.2f}',
-            scheduled_omega(by_hand[(v, w)], w, phi, 1.5), expected)
-    check('clamped to the limit (phi = 1.0 would give 2.25)',
-        scheduled_omega(by_hand[(-0.2, 0.0)], 0.0, 1.0, 1.5), 1.5)
+    print('\n\n\n TEST 6: snap_to_level() and command_to_send()')
+    check_true('snap: 0.2000001 finds 0.2', snap_to_level(SPEED_LEVELS, 0.2000001) == 0.2)
+    check_true('snap: -0.3 finds -0.3', snap_to_level(TURN_LEVELS, -0.3) == -0.3)
+    check_true('snap: 0.15 is not a level', snap_to_level(SPEED_LEVELS, 0.15) is None)
 
-    heading('\nthe settings at the top of this file')
-    L, a = settings_L, settings_a
-    live = attempt(build_table, Q, R, SPEED_LEVELS, TURN_LEVELS, MAX_STEADY_ANGLE_DEG)
-    if live is NOT_DONE:
-        skipped['checks'] += 3          # not empty, every row stable, closed loop
-    elif live is None:
-        print('FAIL  build_table returned None (is there a return rows at the end?)')
-        failures.append('build_table returned None')
-    else:
-        check_true('the table is not empty', len(live) > 0)
-        check_true('every row is stable (A - B*K < 0)', all(r['A'] - r['B'] * r['K'] < 0 for r in live))
-        check_true('closed loop A - B*K = -sqrt(A^2 + B^2*Q/R) in every row',
-                all(abs((r['A'] - r['B'] * r['K']) + sqrt(r['A'] ** 2 + r['B'] ** 2 * Q / R)) < 1e-9
-                    for r in live))
-        row = find_row(live, -max(SPEED_LEVELS), 0.0)
-        print(f'info  {len(live)} rows with Q={Q:g}, R={R:g}; 'f'K(v={-max(SPEED_LEVELS):+.2f}, w=0) = {row["K"]:.4f}' if row else f'info  {len(live)} rows')
+    out = command_to_send(gain_table, -0.2, 0.0, 0.10)
+    check('reverse in table: omega_out', None if out is None else out[0], 0.2254)
+    out = command_to_send(gain_table, -0.2000001, 0.3, 0.40)
+    check('reverse, command 1e-7 off the level: omega_out', None if out is None else out[0], 0.4719)
+    check('reverse in table: phi_eq [deg]',
+        None if out is None or out[1] is None else math.degrees(out[1]), 18.69, 0.01)
+    out = command_to_send(gain_table, -0.2, 0.3, 2.0)
+    check('big error is clamped to MAX_ANGULAR_RAD_S', None if out is None else out[0], MAX_ANGULAR_RAD_S)
+    out = command_to_send(gain_table, -0.2, 0.3, -2.0)
+    check('big error is clamped to -MAX_ANGULAR_RAD_S', None if out is None else out[0], -MAX_ANGULAR_RAD_S)
 
-    end_section()
-    print()
+    check_true('reverse, speed not in table -> refuse (None)', command_to_send(gain_table, -0.15, 0.0, 0.0) is None)
+    check_true('reverse, turn not in table -> refuse (None)', command_to_send(gain_table, -0.2, 0.25, 0.0) is None)
+    check_true('reverse, steady angle over the limit -> refuse (None)',
+            command_to_send(gain_table, -0.1, 0.5, 0.0) is None)
+
+    out = command_to_send(gain_table, 0.2, -0.3, 0.0)
+    check('forward in table: omega_out', None if out is None else out[0], -0.44)
+    out = command_to_send(gain_table, 0.15, 0.2, 0.0)
+    check_true('forward, not in table -> passed through unchanged', out == (0.2, None))
+    out = command_to_send(gain_table, 0.1, 0.3, 0.0)
+    check_true('forward, steady angle over the limit -> passed through unchanged', out == (0.3, None))
+    print("\t---------------------------")
+
     if failures:
-        print(f'{len(failures)} FAILED: ' + ', '.join(failures))
-    if waiting:
-        print('Still to write (shown as TODO above): ' + ', '.join(waiting))
-    if failures or waiting:
+        print("\n\n\n\t" +  f'{len(failures)} FAILED. Scroll up to see which tests were failed.' )
+        print("\t---------------------------")
         return 1
-    print('all checks passed')
+    print("\n\n\t" + 'All tests passed. (Yay!)')
+    print("\t---------------------------")
     return 0
 
 
@@ -294,9 +258,7 @@ def main(args=None):
     node = rclpy.create_node('trailer_lqr')
 
     # Built once here; takes well under a millisecond.
-    rows = build_table(Q, R, SPEED_LEVELS, TURN_LEVELS, MAX_STEADY_ANGLE_DEG)
-    if not rows:
-        raise RuntimeError('build_table gave no rows (does it end with `return rows`?)')
+    gain_table = build_table(Q, R)
 
     # What the callbacks share.
     state = {
@@ -369,26 +331,23 @@ def main(args=None):
         if phi is None:
             return
 
-        row = find_row(rows, v_cmd, w_cmd)
-        if row is None:
-            if v_cmd < 0.0:
-                stop('reversing with a command that is not in the gain table '
-                    f'(v={v_cmd:+.2f}, w={w_cmd:+.2f}).')
-                return
-            publish(v_cmd, w_cmd)       # forward: the trailer is stable on its own
-            state['sending'] = True
+        result = command_to_send(gain_table, v_cmd, w_cmd, phi)
+        if result is None:
+            stop('reversing with a command that is not in the gain table '
+                f'(v={v_cmd:+.2f}, w={w_cmd:+.2f}).')
             return
 
-        w_out = scheduled_omega(row, w_cmd, phi, MAX_ANGULAR_RAD_S)
+        w_out, phi_eq = result
         publish(v_cmd, w_out)
         state['sending'] = True
 
-        debug = Vector3Stamped()
-        debug.header.stamp = node.get_clock().now().to_msg()
-        debug.vector.x = float(phi)
-        debug.vector.y = float(row['phi_star'])
-        debug.vector.z = float(w_out)
-        debug_pub.publish(debug)
+        if phi_eq is not None:
+            debug = Vector3Stamped()
+            debug.header.stamp = node.get_clock().now().to_msg()
+            debug.vector.x = float(phi)
+            debug.vector.y = float(phi_eq)
+            debug.vector.z = float(w_out)
+            debug_pub.publish(debug)
 
     node.create_subscription(Twist, 'cmd_vel_teleop', on_teleop, 10)
     trailer_qos = QoSProfile(
@@ -397,7 +356,7 @@ def main(args=None):
     node.create_timer(1.0 / RATE_HZ, on_timer)
 
     node.get_logger().info(
-        f'trailer_lqr ready: {len(rows)} gain rows, '
+        f'trailer_lqr ready: {np.count_nonzero(gain_table)} gains, '
         f'L={L:.3f} m, a={a:.3f} m, '
         f'Q={Q:g}, R={R:g}. Waiting for /cmd_vel_teleop.')
 
