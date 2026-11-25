@@ -20,7 +20,7 @@ R = 1.0                                 # cost on the steering correction
 SPEED_LEVELS = [i / 10 for i in range(-4, 5)]    # [m/s]
 TURN_LEVELS = [j / 10 for j in range(-5, 6)]     # [rad/s]
 
-MAX_STEADY_ANGLE_DEG = 35.0             # arcs with a bigger steady trailer angle are not in the table
+MAX_STEADY_ANGLE_DEG = 90.0             # arcs with a bigger steady trailer angle are not in the table
 RATE_HZ = 50.0                  # control rate
 MAX_ANGULAR_RAD_S = 2.0         # limit on the angular.z we publish
 MAX_TRAILER_ANGLE_DEG = 80.0    # stop if |phi| is bigger than this (jackknife is near)
