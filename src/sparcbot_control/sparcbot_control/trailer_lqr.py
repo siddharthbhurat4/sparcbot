@@ -31,7 +31,8 @@ TRAILER_TIMEOUT_S = 0.2         # stop if /trailer_angle is silent for this long
 def hitch_equilibrium_angle(v_eq, omega_eq):
 
     # TODO: Find the equilibrium phi_eq closest to phi_eq=0 for (v_eq, omega_eq). Return none if v=0 or if phi_eq doesn't exist. 
-        
+    phi_eq = None 
+    
     return phi_eq
 
 #linearize(v_eq, omega_eq)
@@ -40,6 +41,8 @@ def linearize(v_eq, omega_eq):
     phi_eq = hitch_equilibrium_angle(v_eq, omega_eq)
 
     # TODO: Find the linearization terms.  
+    A = 0 
+    Bphi = 0 
     
     return phi_eq, A, Bphi
 
@@ -47,6 +50,7 @@ def linearize(v_eq, omega_eq):
 def scalar_lqr(A, Bphi, Q, R):
     
     # TODO: Find the optimal LQR gain. 
+    K = 0
 
     return K 
 
@@ -57,7 +61,7 @@ def build_table(Q, R):
     for i, v_eq in enumerate(SPEED_LEVELS):
         for j, omega_eq in enumerate(TURN_LEVELS):
             # TODO: Set the table with the optimal LQR gains for each (v_eq, omega_eq)-->phi_eq equilibrium point.
-            # gain_table[i,j] = ??? 
+            gain_table[i,j] = 0 
 
             
     return gain_table
