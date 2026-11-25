@@ -22,20 +22,17 @@ TURN_LEVELS = [j / 10 for j in range(-5, 6)]     # [rad/s]
 
 MAX_STEADY_ANGLE_DEG = 35.0             # arcs with a bigger steady trailer angle are not in the table
 RATE_HZ = 50.0                  # control rate
-MAX_ANGULAR_RAD_S = 1.0         # limit on the angular.z we publish
-MAX_TRAILER_ANGLE_DEG = 60.0    # stop if |phi| is bigger than this (jackknife is near)
+MAX_ANGULAR_RAD_S = 2.0         # limit on the angular.z we publish
+MAX_TRAILER_ANGLE_DEG = 80.0    # stop if |phi| is bigger than this (jackknife is near)
 TRAILER_TIMEOUT_S = 0.2         # stop if /trailer_angle is silent for this long
 
 
-#hitch_equilibrium_angle(v_eq, omega_eq)
+# TODO: replace hitch_equilibrium_angle(v_eq, omega_eq) with working code from simulation
 def hitch_equilibrium_angle(v_eq, omega_eq):
-
-    # TODO: Find the equilibrium phi_eq closest to phi_eq=0 for (v_eq, omega_eq). Return none if v=0 or if phi_eq doesn't exist. 
     phi_eq = None 
-    
     return phi_eq
 
-#linearize(v_eq, omega_eq)
+# TODO: replace linearize(v_eq, omega_eq) with working code from simuation 
 def linearize(v_eq, omega_eq):
 
     phi_eq = hitch_equilibrium_angle(v_eq, omega_eq)
@@ -46,34 +43,23 @@ def linearize(v_eq, omega_eq):
     
     return phi_eq, A, Bphi
 
-#scalar_lqr(A, Bphi, Q, R)
+# TODO: scalar_lqr(A, Bphi, Q, R) with working code from simuation 
 def scalar_lqr(A, Bphi, Q, R):
-    
-    # TODO: Find the optimal LQR gain. 
     K = 0
-
     return K 
 
-#build_table(Q, R)
+# TODO: build_table(Q, R) with working code from simuation 
 def build_table(Q, R):
-
     gain_table = np.zeros((len(SPEED_LEVELS), len(TURN_LEVELS)))
     for i, v_eq in enumerate(SPEED_LEVELS):
         for j, omega_eq in enumerate(TURN_LEVELS):
-            # TODO: Set the table with the optimal LQR gains for each (v_eq, omega_eq)-->phi_eq equilibrium point.
             gain_table[i,j] = 0 
-
-            
     return gain_table
 
-
+# TODO: gain_scheduled_controller(gain_table, v_cmd, omega_cmd, phi_measured) with working code from simuation 
 def gain_scheduled_controller(gain_table, v_cmd, omega_cmd, phi_measured):
-
     i = SPEED_LEVELS.index(v_cmd)
     j = TURN_LEVELS.index(omega_cmd)
-
-    # TODO: Find the gain-scheduled controller value to send to the motors.
-
     return u
 
 
