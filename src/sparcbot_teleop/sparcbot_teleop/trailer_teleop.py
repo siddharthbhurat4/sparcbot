@@ -37,7 +37,7 @@ TRAILER_LENGTH_M = 0.081         # L: hitch pivot to the centre of the trailer's
 HITCH_OFFSET_M = 0.14           # a: how far BEHIND the robot's axle centre the hitch pivot is [m]
 
 # The three speeds [m/s] and three turn rates [rad/s] (magnitudes; the keys set the signs).
-SPEED_LEVELS_M_S = (0.10, 0.15, 0.20)
+SPEED_LEVELS_M_S = (0.10, 0.20, 0.30)
 TURN_LEVELS_RAD_S = (0.10, 0.20, 0.30)
 START_SPEED_LEVEL = 0           # index into SPEED_LEVELS_M_S
 START_TURN_LEVEL = 0            # index into TURN_LEVELS_RAD_S
