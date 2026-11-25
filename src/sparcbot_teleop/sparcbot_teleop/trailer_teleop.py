@@ -44,7 +44,7 @@ START_TURN_LEVEL = 0            # index into TURN_LEVELS_RAD_S
 
 # A combination is refused if its steady trailer angle is bigger than this. Keep it a little
 # under trailer_lqr's MAX_TRAILER_ANGLE_DEG (40) so there is room left to correct errors.
-MAX_STEADY_TRAILER_ANGLE_DEG = 35.0
+MAX_STEADY_TRAILER_ANGLE_DEG = 60.0
 
 SPEED_NAMES = ('slow', 'medium', 'fast')
 TURN_NAMES = ('gentle', 'medium', 'sharp')
