@@ -34,13 +34,9 @@ def hitch_equilibrium_angle(v_eq, omega_eq):
 
 # TODO: replace linearize(v_eq, omega_eq) with working code from simuation 
 def linearize(v_eq, omega_eq):
-
     phi_eq = hitch_equilibrium_angle(v_eq, omega_eq)
-
-    # TODO: Find the linearization terms.  
     A = 0 
     Bphi = 0 
-    
     return phi_eq, A, Bphi
 
 # TODO: scalar_lqr(A, Bphi, Q, R) with working code from simuation 
@@ -60,6 +56,7 @@ def build_table(Q, R):
 def gain_scheduled_controller(gain_table, v_cmd, omega_cmd, phi_measured):
     i = SPEED_LEVELS.index(v_cmd)
     j = TURN_LEVELS.index(omega_cmd)
+    u = 0 
     return u
 
 
